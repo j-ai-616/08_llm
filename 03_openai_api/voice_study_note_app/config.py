@@ -14,7 +14,7 @@ DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4.1-mini")
 STT_MODEL = os.getenv("STT_MODEL", "gpt-4o-mini-transcribe")
 TTS_MODEL = os.getenv("TTS_MODEL", "gpt-4o-mini-tts")
 TTS_VOICE = os.getenv("TTS_VOICE", "alloy")
-MODERATION_MODEL = os.getenv("TTS_VOICE", "alloy")
+MODERATION_MODEL = os.getenv("MODERATION_MODEL", "omni-moderation-latest")
 
 BASE_DIR = Path(__file__).resolve().parent
 NOTES_DIR = BASE_DIR / "notes"

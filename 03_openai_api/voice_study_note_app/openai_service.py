@@ -21,7 +21,13 @@ def transcribe_audio(audio_file) -> str:
 
     try:
         # TODO: 여기에 코드 작성
-        pass
+        with open(temp_audio_path, "rb") as f:
+            transcript = client.audio.transcriptions.create(
+                model=STT_MODEL,
+                file=f
+            )
+            
+        return transcript.text.strip()
     finally:
         Path(temp_audio_path).unlink(missing_ok=True)
 
@@ -33,7 +39,11 @@ def is_flagged(text: str) -> bool:
         return False
 
     # TODO: 여기에 코드 작성
-    pass
+    response = client.moderations.create(
+        model=MODERATION_MODEL,
+        input=text
+    )
+    return response.results[0].flagged
 
 
 # Structured Outputs로 학습 노트를 JSON 구조로 생성한다.
@@ -73,20 +83,62 @@ def generate_study_note(transcript: str) -> Dict:
     }
 
     # TODO: 여기에 코드 작성
-    pass
+    response = client.responses.create(
+        model=DEFAULT_MODEL,
+        instructions=(
+            "너는 초급 개발자의 학습 내용을 정리해주는 AI 학습 코치이다. "
+            "사용자가 말한 내용을 바탕으로 과장 없이 학습 노트를 작성한다. "
+            "입력에 없는 내용을 단정하지 말고, 헷갈린 부분은 복습 항목으로 정리한다." 
+        ),
+        input=f"다음 학습 회고 내용을 학습 노트로 정리해줘. \n\n {transcript}",
+        text={
+            "format" : {
+                "type" : "json_schema",
+                "name" : "study_note",
+                "schema" : schema,
+                "strict" : True
+            }
+        }
+    )
+
+    return json.loads(response.output_text)
 
 
 # 생성된 노트를 바탕으로 짧은 복습 설명을 Streaming으로 만든다.
 # Streaming은 긴 답변을 한 번에 기다리지 않고 화면에 점진적으로 보여줄 때 사용한다.
 def stream_review_message(note: Dict) -> Generator[str, None, None]:
-    # TODO: 여기에 코드 작성
-    pass
+    prompt = f"""
+다음 학습 노트를 바탕으로 초급 학습자에게 5문장 이내의 복습 메세지를 작성해줘.
+너무 장황하게 설명하지 말고, 오늘 무엇을 이해했고 다음에 무엇을 복습하면 좋을지 알려줘.
 
+제목 : {note['title']}
+요약 : {note['summary']}
+핵심 개념 : {", ".join(note['key_points'])}
+헷갈린 부분 : {", ".join(note['confusing_points'])}
+다음 할 일 : {", ".join(note['next_actions'])}
+"""
+
+    stream = client.responses.create(
+        model=DEFAULT_MODEL,
+        instructions="너는 친절하지만 간결하게 말하는 AI 학습 코치이다.",
+        input=prompt,
+        stream=True
+    )
+
+    for event in stream:
+        if event.type == 'response.output_text.delta':
+            yield event.delta
 
 # 복습 메시지를 TTS 모델로 변환해 음성 파일을 만든다.
 def synthesize_speech(text: str) -> Path:
     output_path = AUDIO_DIR / "review_message.mp3"
 
     # TODO: 여기에 코드 작성
-    pass
+    with client.audio.speech.with_streaming_response.create(
+        model=TTS_MODEL,
+        voice=TTS_VOICE,
+        input=text
+    ) as response:
+        response.stream_to_file(output_path)
 
+    return output_path
