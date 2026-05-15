@@ -1,2 +1,6 @@
 .vscode
 .env
+**/audio_outputs
+**/notes
+**/__pycache__
+**/db
